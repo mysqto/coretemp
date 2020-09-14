@@ -38,6 +38,7 @@ coretemp
  * `-F` Output temperature in Fahrenheit.
  * `-c <num>` Specify which cores to report on, in a comma-separated list. If unspecified, reports all temperatures.
  * `-r <num>`  The accuracy of the temperature, in the number of decimal places. Defaults to 0.
+ * `-p` Display the CPU package temperature instead of the core temperatures.
  
 ## Maintainer 
 

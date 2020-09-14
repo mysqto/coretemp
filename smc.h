@@ -32,6 +32,7 @@
 #define SMC_CPU_CORE_TEMP_PREFIX "TC"
 #define SMC_CPU_CORE_TEMP_SUFFIX_OLD 'C'
 #define SMC_CPU_CORE_TEMP_SUFFIX_NEW 'c'
+#define SMC_CPU_PROXIMITY_TEMP "TC0P"
 
 typedef struct {
     char major;

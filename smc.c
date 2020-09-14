@@ -278,6 +278,23 @@ void getCoreNumbers(char* arg, unsigned long* cores, char* errorMsg)
     }
 }
 
+double convertToCorrectScale(char scale, double temperature) {
+    if (scale == 'F') {
+        return convertToFahrenheit(temperature);
+    } else {
+        return temperature;
+    }
+}
+
+void printTemperature(double temperature, unsigned int rounding) {
+    printf("%.*f\n", rounding, temperature);
+}
+
+enum OutputMode {
+    core,
+    package,
+};
+
 int main(int argc, char* argv[])
 {
     char scale = 'C';
@@ -285,9 +302,10 @@ int main(int argc, char* argv[])
     unsigned long* coreList = malloc(sizeof(unsigned long));
     unsigned long coreCount;
     unsigned int rounding = 0;
+    enum OutputMode outputMode = core;
 
     int argLabel;
-    while ((argLabel = getopt(argc, argv, "FCc:r:h")) != -1) {
+    while ((argLabel = getopt(argc, argv, "FCc:r:ph")) != -1) {
         switch (argLabel) { // NOLINT(hicpp-multiway-paths-covered)
         case 'F':
         case 'C':
@@ -303,6 +321,9 @@ int main(int argc, char* argv[])
         case 'r':
             rounding = (int)parseNumArg(optarg, "Invalid decimal place limit.\n");
             break;
+        case 'p':
+            outputMode = package;
+            break;
         case 'h':
         case '?':
             printf("usage: coretemp <options>\n");
@@ -311,51 +332,53 @@ int main(int argc, char* argv[])
             printf("  -C        Display temperatures in degrees Celsius (Default).\n");
             printf("  -c <num>  Specify which cores to report on, in a comma-separated list. If unspecified, reports all temperatures.\n");
             printf("  -r <num>  The accuracy of the temperature, in the number of decimal places. Defaults to 0.\n");
+            printf("  -p        Display the CPU package temperature instead of the core temperatures.\n");
             printf("  -h        Display this help.\n");
             return -1;
         }
     }
 
-    if (!specifiedCores) {
-        coreCount = getPhysicalCoreCount();
-        coreList = realloc(coreList, coreCount * sizeof(unsigned long));
-        for (int i = 0; i < coreCount; ++i)
-            coreList[i] = i;
-    }
-
     SMCOpen();
 
-    char templateKey[7];
-    double firstCoreTemperature = getTemperatureKeyTemplate(coreList[0], templateKey);
+    switch (outputMode) {
+        default:
+        case core: {
+            if (!specifiedCores) {
+                coreCount = getPhysicalCoreCount();
+                coreList = realloc(coreList, coreCount * sizeof(unsigned long));
+                for (int i = 0; i < coreCount; ++i)
+                    coreList[i] = i;
+            }
 
-    if (firstCoreTemperature == 0) {
-        // The first core does not exist
-        printf("The specified core (%lu) does not exist.\n", coreList[0]);
-        exit(1);
-    }
+            char templateKey[7];
+            double firstCoreTemperature = getTemperatureKeyTemplate(coreList[0], templateKey);
 
-    if (scale == 'F') {
-        firstCoreTemperature = convertToFahrenheit(firstCoreTemperature);
-    }
+            if (firstCoreTemperature == 0) {
+                // The first core does not exist
+                printf("The specified core (%lu) does not exist.\n", coreList[0]);
+                exit(1);
+            }
 
-    printf("%.*f\n", rounding, firstCoreTemperature);
+            printTemperature(convertToCorrectScale(scale, firstCoreTemperature), rounding);
 
-    for (int i = 1; i < coreCount; ++i) {
-        char key[getTemperatureSMCKeySize(coreList[i])];
-        sprintf(key, templateKey, coreList[i]);
-        double temperature = SMCGetTemperature(key);
+            for (int i = 1; i < coreCount; ++i) {
+                char key[getTemperatureSMCKeySize(coreList[i])];
+                sprintf(key, templateKey, coreList[i]);
+                double temperature = SMCGetTemperature(key);
 
-        if (temperature == 0) {
-            // The specified core does not exist
-            printf("The specified core (%lu) does not exist.\n", coreList[i]);
-            exit(1);
+                if (temperature == 0) {
+                    // The specified core does not exist
+                    printf("The specified core (%lu) does not exist.\n", coreList[i]);
+                    exit(1);
+                }
+
+                printTemperature(convertToCorrectScale(scale, temperature), rounding);
+            }
+            break;
         }
-
-        if (scale == 'F') {
-            temperature = convertToFahrenheit(temperature);
-        }
-
-        printf("%.*f\n", rounding, temperature);
+        case package:
+            printTemperature(convertToCorrectScale(scale, SMCGetTemperature(SMC_CPU_PROXIMITY_TEMP)), rounding);
+            break;
     }
 
     SMCClose();
