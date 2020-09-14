@@ -377,7 +377,7 @@ int main(int argc, char* argv[])
             break;
         }
         case package:
-            printTemperature(convertToCorrectScale(scale, SMCGetTemperature(SMC_CPU_PROXIMITY_TEMP)), rounding);
+            printTemperature(convertToCorrectScale(scale, SMCGetTemperature(SMC_CPU_DIE_TEMP)), rounding);
             break;
     }
 
