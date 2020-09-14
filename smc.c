@@ -18,10 +18,10 @@
  */
 
 #include <IOKit/IOKitLib.h>
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <ctype.h>
 #include <sys/sysctl.h>
 
 #include "smc.h"
@@ -161,19 +161,23 @@ double SMCGetTemperature(char* key)
     return 0.0;
 }
 
-int getTemperatureSMCKeySize(unsigned long core) {
+int getTemperatureSMCKeySize(unsigned long core)
+{
     return snprintf(NULL, 0, "%s%lu%c", SMC_CPU_CORE_TEMP_PREFIX, core, SMC_CPU_CORE_TEMP_SUFFIX_NEW);
 }
 
-void getOldSMCTemperatureKeyTemplate(char* key) {
+void getOldSMCTemperatureKeyTemplate(char* key)
+{
     sprintf(key, "%s%%lu%c", SMC_CPU_CORE_TEMP_PREFIX, SMC_CPU_CORE_TEMP_SUFFIX_OLD);
 }
 
-void getNewSMCTemperatureKeyTemplate(char* key) {
+void getNewSMCTemperatureKeyTemplate(char* key)
+{
     sprintf(key, "%s%%lu%c", SMC_CPU_CORE_TEMP_PREFIX, SMC_CPU_CORE_TEMP_SUFFIX_NEW);
 }
 
-double getTemperatureKeyTemplate(unsigned long core, char* templateKey) {
+double getTemperatureKeyTemplate(unsigned long core, char* templateKey)
+{
     getNewSMCTemperatureKeyTemplate(templateKey);
 
     char key[getTemperatureSMCKeySize(core)];
@@ -196,7 +200,8 @@ double convertToFahrenheit(double celsius)
     return (celsius * (9.0 / 5.0)) + 32.0;
 }
 
-unsigned long parseNumArg(char* arg, const char* errorMsg) {
+unsigned long parseNumArg(char* arg, const char* errorMsg)
+{
     char* endptr;
     long result = strtol(arg, &endptr, 10);
     if (endptr == optarg || *endptr != '\0' || result < 0) {
@@ -206,13 +211,15 @@ unsigned long parseNumArg(char* arg, const char* errorMsg) {
     return result;
 }
 
-unsigned long getCoreArgCount(const char* arg) {
+unsigned long getCoreArgCount(const char* arg)
+{
     unsigned long coreCount = 0;
     for (int i = 0; arg[i] != '\0'; (arg[i] == ',' && !(i == 0 || arg[i + 1] == ',' || arg[i + 1] == '\0')) ? coreCount++ : 0, i++);
     return coreCount + 1;
 }
 
-int getPhysicalCoreCount() {
+int getPhysicalCoreCount()
+{
     // https://stackoverflow.com/a/150971
     int mib[4];
     int numCPU;
@@ -220,13 +227,12 @@ int getPhysicalCoreCount() {
 
     /* set the mib for hw.ncpu */
     mib[0] = CTL_HW;
-    mib[1] = HW_NCPU;  // alternatively, try HW_NCPU;
+    mib[1] = HW_NCPU; // alternatively, try HW_NCPU;
 
     /* get the number of CPUs from the system */
     sysctl(mib, 2, &numCPU, &len, NULL, 0);
 
-    if (numCPU < 1)
-    {
+    if (numCPU < 1) {
         mib[1] = HW_NCPU;
         sysctl(mib, 2, &numCPU, &len, NULL, 0);
         if (numCPU < 1)
@@ -235,26 +241,30 @@ int getPhysicalCoreCount() {
 
     // https://stackoverflow.com/a/29761237
     uint32_t registers[4];
-    __asm__ __volatile__ ("cpuid " :
-    "=a" (registers[0]),
-    "=b" (registers[1]),
-    "=c" (registers[2]),
-    "=d" (registers[3])
-    : "a" (1), "c" (0));
+    __asm__ __volatile__("cpuid "
+                         : "=a"(registers[0]),
+                         "=b"(registers[1]),
+                         "=c"(registers[2]),
+                         "=d"(registers[3])
+                         : "a"(1), "c"(0));
 
     unsigned cpuFeatureSet = registers[3];
     bool hyperthreading = cpuFeatureSet & (1 << 28);
 
-    if (hyperthreading) return numCPU / 2;
-    else return numCPU;
+    if (hyperthreading)
+        return numCPU / 2;
+    else
+        return numCPU;
 }
 
-void getCoreNumbers(char* arg, unsigned long *cores, char* errorMsg) {
+void getCoreNumbers(char* arg, unsigned long* cores, char* errorMsg)
+{
     char buf[strlen(arg) + 1];
-    char *core = buf;
+    char* core = buf;
 
     while (*arg) {
-        if (!isspace((unsigned char) *arg)) *core++ = *arg;
+        if (!isspace((unsigned char)*arg))
+            *core++ = *arg;
         arg++;
     }
 
@@ -281,7 +291,7 @@ int main(int argc, char* argv[])
         switch (argLabel) { // NOLINT(hicpp-multiway-paths-covered)
         case 'F':
         case 'C':
-            scale = (char) argLabel;
+            scale = (char)argLabel;
             break;
         case 'c': {
             coreCount = getCoreArgCount(optarg);
@@ -291,7 +301,7 @@ int main(int argc, char* argv[])
             break;
         }
         case 'r':
-            rounding = (int) parseNumArg(optarg, "Invalid decimal place limit.\n");
+            rounding = (int)parseNumArg(optarg, "Invalid decimal place limit.\n");
             break;
         case 'h':
         case '?':
@@ -309,7 +319,8 @@ int main(int argc, char* argv[])
     if (!specifiedCores) {
         coreCount = getPhysicalCoreCount();
         coreList = realloc(coreList, coreCount * sizeof(unsigned long));
-        for (int i = 0; i < coreCount; ++i) coreList[i] = i;
+        for (int i = 0; i < coreCount; ++i)
+            coreList[i] = i;
     }
 
     SMCOpen();
