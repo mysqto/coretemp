@@ -19,13 +19,16 @@
 
 #include <IOKit/IOKitLib.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
+#include <sys/sysctl.h>
 
 #include "smc.h"
 
 static io_connect_t conn;
 
-UInt32 _strtoul(char* str, int size, int base)
+UInt32 _strtoul(const char* str, int size, int base)
 {
     UInt32 total = 0;
     int i;
@@ -158,24 +161,34 @@ double SMCGetTemperature(char* key)
     return 0.0;
 }
 
-double SMCGetFanSpeed(char* key)
-{
-    SMCVal_t val;
-    kern_return_t result;
+int getTemperatureSMCKeySize(unsigned long core) {
+    return snprintf(NULL, 0, "%s%lu%c", SMC_CPU_CORE_TEMP_PREFIX, core, SMC_CPU_CORE_TEMP_SUFFIX_NEW);
+}
 
-    result = SMCReadKey(key, &val);
-    if (result == kIOReturnSuccess) {
-        // read succeeded - check returned value
-        if (val.dataSize > 0) {
-            if (strcmp(val.dataType, DATATYPE_FPE2) == 0) {
-                // convert fpe2 value to rpm
-                int intValue = (unsigned char)val.bytes[0] * 256 + (unsigned char)val.bytes[1];
-                return intValue / 4.0;
-            }
-        }
+void getOldSMCTemperatureKeyTemplate(char* key) {
+    sprintf(key, "%s%%lu%c", SMC_CPU_CORE_TEMP_PREFIX, SMC_CPU_CORE_TEMP_SUFFIX_OLD);
+}
+
+void getNewSMCTemperatureKeyTemplate(char* key) {
+    sprintf(key, "%s%%lu%c", SMC_CPU_CORE_TEMP_PREFIX, SMC_CPU_CORE_TEMP_SUFFIX_NEW);
+}
+
+double getTemperatureKeyTemplate(unsigned long core, char* templateKey) {
+    getNewSMCTemperatureKeyTemplate(templateKey);
+
+    char key[getTemperatureSMCKeySize(core)];
+    sprintf(key, templateKey, core);
+
+    double temperature = SMCGetTemperature(key);
+
+    if (temperature == 0) {
+        // We must use the old key
+        getOldSMCTemperatureKeyTemplate(templateKey);
+        sprintf(key, templateKey, core);
+        temperature = SMCGetTemperature(key);
     }
-    // read failed
-    return 0.0;
+
+    return temperature;
 }
 
 double convertToFahrenheit(double celsius)
@@ -183,173 +196,155 @@ double convertToFahrenheit(double celsius)
     return (celsius * (9.0 / 5.0)) + 32.0;
 }
 
-// Requires SMCOpen()
-void readAndPrintCpuTemp(int show_title, char scale)
-{
-    double temperature = SMCGetTemperature(SMC_KEY_CPU_TEMP);
-    if (scale == 'F') {
-        temperature = convertToFahrenheit(temperature);
+unsigned long parseNumArg(char* arg, const char* errorMsg) {
+    char* endptr;
+    long result = strtol(arg, &endptr, 10);
+    if (endptr == optarg || *endptr != '\0' || result < 0) {
+        fprintf(stderr, "%s", errorMsg);
+        exit(1);
     }
-
-    char* title = "";
-    if (show_title) {
-        title = "CPU: ";
-    }
-    printf("%s%0.1f °%c\n", title, temperature, scale);
+    return result;
 }
 
-// Requires SMCOpen()
-void readAndPrintGpuTemp(int show_title, char scale)
-{
-    double temperature = SMCGetTemperature(SMC_KEY_GPU_TEMP);
-    if (scale == 'F') {
-        temperature = convertToFahrenheit(temperature);
-    }
-
-    char* title = "";
-    if (show_title) {
-        title = "GPU: ";
-    }
-    printf("%s%0.1f °%c\n", title, temperature, scale);
+unsigned long getCoreArgCount(const char* arg) {
+    unsigned long coreCount = 0;
+    for (int i = 0; arg[i] != '\0'; (arg[i] == ',' && !(i == 0 || arg[i + 1] == ',' || arg[i + 1] == '\0')) ? coreCount++ : 0, i++);
+    return coreCount + 1;
 }
 
-float SMCGetFanRPM(char* key)
-{
-    SMCVal_t val;
-    kern_return_t result;
+int getPhysicalCoreCount() {
+    // https://stackoverflow.com/a/150971
+    int mib[4];
+    int numCPU;
+    size_t len = sizeof(numCPU);
 
-    result = SMCReadKey(key, &val);
-    if (result == kIOReturnSuccess) {
-        // read succeeded - check returned value
-        if (val.dataSize > 0) {
-            if (strcmp(val.dataType, DATATYPE_FPE2) == 0) {
-                // convert fpe2 value to RPM
-                return ntohs(*(UInt16*)val.bytes) / 4.0;
-            }
-        }
+    /* set the mib for hw.ncpu */
+    mib[0] = CTL_HW;
+    mib[1] = HW_NCPU;  // alternatively, try HW_NCPU;
+
+    /* get the number of CPUs from the system */
+    sysctl(mib, 2, &numCPU, &len, NULL, 0);
+
+    if (numCPU < 1)
+    {
+        mib[1] = HW_NCPU;
+        sysctl(mib, 2, &numCPU, &len, NULL, 0);
+        if (numCPU < 1)
+            numCPU = 1;
     }
-    // read failed
-    return -1.f;
+
+    // https://stackoverflow.com/a/29761237
+    uint32_t registers[4];
+    __asm__ __volatile__ ("cpuid " :
+    "=a" (registers[0]),
+    "=b" (registers[1]),
+    "=c" (registers[2]),
+    "=d" (registers[3])
+    : "a" (1), "c" (0));
+
+    unsigned cpuFeatureSet = registers[3];
+    bool hyperthreading = cpuFeatureSet & (1 << 28);
+
+    if (hyperthreading) return numCPU / 2;
+    else return numCPU;
 }
 
-// Requires SMCOpen()
-void readAndPrintFanRPMs(void)
-{
-    kern_return_t result;
-    SMCVal_t val;
-    UInt32Char_t key;
-    int totalFans, i;
+void getCoreNumbers(char* arg, unsigned long *cores, char* errorMsg) {
+    char buf[strlen(arg) + 1];
+    char *core = buf;
 
-    result = SMCReadKey("FNum", &val);
+    while (*arg) {
+        if (!isspace((unsigned char) *arg)) *core++ = *arg;
+        arg++;
+    }
 
-    if (result == kIOReturnSuccess) {
-        totalFans = _strtoul((char*)val.bytes, val.dataSize, 10);
+    *core = '\0';
 
-        printf("Num fans: %d\n", totalFans);
-        for (i = 0; i < totalFans; i++) {
-            sprintf(key, "F%dID", i);
-            result = SMCReadKey(key, &val);
-            if (result != kIOReturnSuccess) {
-                continue;
-            }
-            char* name = val.bytes + 4;
-
-            sprintf(key, "F%dAc", i);
-            float actual_speed = SMCGetFanRPM(key);
-            if (actual_speed < 0.f) {
-                continue;
-            }
-
-            sprintf(key, "F%dMn", i);
-            float minimum_speed = SMCGetFanRPM(key);
-            if (minimum_speed < 0.f) {
-                continue;
-            }
-
-            sprintf(key, "F%dMx", i);
-            float maximum_speed = SMCGetFanRPM(key);
-            if (maximum_speed < 0.f) {
-                continue;
-            }
-
-            float rpm = actual_speed - minimum_speed;
-            if (rpm < 0.f) {
-                rpm = 0.f;
-            }
-            float pct = rpm / (maximum_speed - minimum_speed);
-
-            pct *= 100.f;
-            printf("Fan %d - %s at %.0f RPM (%.0f%%)\n", i, name, rpm, pct);
-
-            //sprintf(key, "F%dSf", i);
-            //SMCReadKey(key, &val);
-            //printf("    Safe speed   : %.0f\n", strtof(val.bytes, val.dataSize, 2));
-            //sprintf(key, "F%dTg", i);
-            //SMCReadKey(key, &val);
-            //printf("    Target speed : %.0f\n", strtof(val.bytes, val.dataSize, 2));
-            //SMCReadKey("FS! ", &val);
-            //if ((_strtoul((char *)val.bytes, 2, 16) & (1 << i)) == 0)
-            //    printf("    Mode         : auto\n");
-            //else
-            //    printf("    Mode         : forced\n");
-        }
+    int arrayIndex = 0;
+    core = strtok(buf, ",");
+    while (core) {
+        cores[arrayIndex++] = parseNumArg(core, errorMsg);
+        core = strtok(NULL, ",");
     }
 }
 
 int main(int argc, char* argv[])
 {
     char scale = 'C';
-    int cpu = 0;
-    int fan = 0;
-    int gpu = 0;
+    bool specifiedCores = false;
+    unsigned long* coreList = malloc(sizeof(unsigned long));
+    unsigned long coreCount;
+    unsigned int rounding = 0;
 
-    int c;
-    while ((c = getopt(argc, argv, "CFcfgh?")) != -1) {
-        switch (c) {
+    int argLabel;
+    while ((argLabel = getopt(argc, argv, "FCc:r:h")) != -1) {
+        switch (argLabel) { // NOLINT(hicpp-multiway-paths-covered)
         case 'F':
         case 'C':
-            scale = c;
+            scale = (char) argLabel;
             break;
-        case 'c':
-            cpu = 1;
+        case 'c': {
+            coreCount = getCoreArgCount(optarg);
+            coreList = realloc(coreList, coreCount * sizeof(unsigned long));
+            getCoreNumbers(optarg, coreList, "Invalid core specified.\n");
+            specifiedCores = true;
             break;
-        case 'f':
-            fan = 1;
-            break;
-        case 'g':
-            gpu = 1;
+        }
+        case 'r':
+            rounding = (int) parseNumArg(optarg, "Invalid decimal place limit.\n");
             break;
         case 'h':
         case '?':
-            printf("usage: osx-cpu-temp <options>\n");
+            printf("usage: coretemp <options>\n");
             printf("Options:\n");
-            printf("  -F  Display temperatures in degrees Fahrenheit.\n");
-            printf("  -C  Display temperatures in degrees Celsius (Default).\n");
-            printf("  -c  Display CPU temperature (Default).\n");
-            printf("  -g  Display GPU temperature.\n");
-            printf("  -f  Display fan speeds.\n");
-            printf("  -h  Display this help.\n");
-            printf("\nIf more than one of -c, -f, or -g are specified, titles will be added\n");
+            printf("  -F        Display temperatures in degrees Fahrenheit.\n");
+            printf("  -C        Display temperatures in degrees Celsius (Default).\n");
+            printf("  -c <num>  Specify which cores to look at, in a comma-separated list. Defaults to 0.\n");
+            printf("  -r <num>  The accuracy of the temperature, in the number of decimal places. Defaults to 0.\n");
+            printf("  -h        Display this help.\n");
             return -1;
         }
     }
 
-    if (!fan && !gpu) {
-        cpu = 1;
+    if (!specifiedCores) {
+        coreCount = getPhysicalCoreCount();
+        coreList = realloc(coreList, coreCount * sizeof(unsigned long));
+        for (int i = 0; i < coreCount; ++i) coreList[i] = i;
     }
-
-    int show_title = fan + gpu + cpu > 1;
 
     SMCOpen();
 
-    if (cpu) {
-        readAndPrintCpuTemp(show_title, scale);
+    char templateKey[7];
+    double firstCoreTemperature = getTemperatureKeyTemplate(coreList[0], templateKey);
+
+    if (firstCoreTemperature == 0) {
+        // The first core does not exist
+        printf("The specified core (%lu) does not exist.\n", coreList[0]);
+        exit(1);
     }
-    if (gpu) {
-        readAndPrintGpuTemp(show_title, scale);
+
+    if (scale == 'F') {
+        firstCoreTemperature = convertToFahrenheit(firstCoreTemperature);
     }
-    if (fan) {
-        readAndPrintFanRPMs();
+
+    printf("%.*f\n", rounding, firstCoreTemperature);
+
+    for (int i = 1; i < coreCount; ++i) {
+        char key[getTemperatureSMCKeySize(coreList[i])];
+        sprintf(key, templateKey, coreList[i]);
+        double temperature = SMCGetTemperature(key);
+
+        if (temperature == 0) {
+            // The specified core does not exist
+            printf("The specified core (%lu) does not exist.\n", coreList[i]);
+            exit(1);
+        }
+
+        if (scale == 'F') {
+            temperature = convertToFahrenheit(temperature);
+        }
+
+        printf("%.*f\n", rounding, temperature);
     }
 
     SMCClose();
