@@ -309,7 +309,7 @@ int main(int argc, char* argv[])
             printf("Options:\n");
             printf("  -F        Display temperatures in degrees Fahrenheit.\n");
             printf("  -C        Display temperatures in degrees Celsius (Default).\n");
-            printf("  -c <num>  Specify which cores to report on, in a comma-separated list. If unspecified, report all temperatures.\n");
+            printf("  -c <num>  Specify which cores to report on, in a comma-separated list. If unspecified, reports all temperatures.\n");
             printf("  -r <num>  The accuracy of the temperature, in the number of decimal places. Defaults to 0.\n");
             printf("  -h        Display this help.\n");
             return -1;

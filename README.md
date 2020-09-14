@@ -36,7 +36,7 @@ coretemp
 
  * `-C` Output temperature in Celsius (default).
  * `-F` Output temperature in Fahrenheit.
- * `-c <num>` Specify which cores to report on, in a comma-separated list. If unspecified, report all temperatures.
+ * `-c <num>` Specify which cores to report on, in a comma-separated list. If unspecified, reports all temperatures.
  * `-r <num>`  The accuracy of the temperature, in the number of decimal places. Defaults to 0.
  
 ## Maintainer 
