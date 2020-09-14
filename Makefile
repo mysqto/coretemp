@@ -6,6 +6,8 @@ PREFIX = /usr/local
 EXEC   = osx-cpu-temp
 SOURCES := $(shell find . -name '*.c')
 
+all : build
+
 build : $(EXEC)
 
 clean : 
