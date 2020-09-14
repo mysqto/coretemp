@@ -42,7 +42,7 @@ coretemp
  
 ## Maintainer 
 
-hacker1024 <hacker1024@users.sourceforge.net>
+hacker1024 \<hacker1024@users.sourceforge.net\>
 
 ### Source 
 
