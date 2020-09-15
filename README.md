@@ -1,16 +1,22 @@
 # coretemp
 
-Outputs current CPU core temperatures on macOS.
+Outputs current CPU core and package temperatures on macOS. 
 
 ## Usage 
 
-### Compiling
+### Install with brew
+
+```bash
+brew install hacker1024/hacker1024/coretemp
+```
+
+### Compile manually
 
 ```bash
 make
 ```
 
-### Running
+### Run manually
 
 ```bash
 ./coretemp
