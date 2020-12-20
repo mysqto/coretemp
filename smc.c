@@ -346,8 +346,14 @@ int main(int argc, char* argv[])
             if (!specifiedCores) {
                 coreCount = getPhysicalCoreCount();
                 coreList = realloc(coreList, coreCount * sizeof(unsigned long));
+                int coreOffset = 0;
+                if (SMCGetTemperature("TC0C") == 0 && SMCGetTemperature("TC0c") == 0) {
+                    // https://logi.wiki/index.php/SMC_Sensor_Codes
+                    // macbookpro first core temperature = TC1C code(key)
+                    coreOffset = 1;
+                }
                 for (int i = 0; i < coreCount; ++i)
-                    coreList[i] = i;
+                    coreList[i] = i + coreOffset;
             }
 
             char templateKey[7];
@@ -376,8 +382,15 @@ int main(int argc, char* argv[])
             }
             break;
         }
-        case package:
-            printTemperature(convertToCorrectScale(scale, SMCGetTemperature(SMC_CPU_DIE_TEMP)), rounding);
+        case package: {
+                // https://logi.wiki/index.php/SMC_Sensor_Codes
+                // try again with macbookpro cpu proximity temperature = TC0P code(key)
+                double cpuTemperature = SMCGetTemperature(SMC_CPU_DIE_TEMP);
+                if (cpuTemperature == 0) {
+                    cpuTemperature = SMCGetTemperature(SMC_CPU_PROXIMITY_TEMP);
+                }
+                printTemperature(convertToCorrectScale(scale, cpuTemperature), rounding);
+            }
             break;
     }
 
