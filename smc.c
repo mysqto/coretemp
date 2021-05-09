@@ -28,8 +28,7 @@
 
 static io_connect_t conn;
 
-UInt32 _strtoul(const char* str, int size, int base)
-{
+UInt32 _strtoul(const char *str, int size, int base) {
     UInt32 total = 0;
     int i;
 
@@ -37,23 +36,21 @@ UInt32 _strtoul(const char* str, int size, int base)
         if (base == 16)
             total += str[i] << (size - 1 - i) * 8;
         else
-            total += (unsigned char)(str[i] << (size - 1 - i) * 8);
+            total += (unsigned char) (str[i] << (size - 1 - i) * 8);
     }
     return total;
 }
 
-void _ultostr(char* str, UInt32 val)
-{
+void _ultostr(char *str, UInt32 val) {
     str[0] = '\0';
     sprintf(str, "%c%c%c%c",
-        (unsigned int)val >> 24,
-        (unsigned int)val >> 16,
-        (unsigned int)val >> 8,
-        (unsigned int)val);
+            (unsigned int) val >> 24,
+            (unsigned int) val >> 16,
+            (unsigned int) val >> 8,
+            (unsigned int) val);
 }
 
-kern_return_t SMCOpen(void)
-{
+kern_return_t SMCOpen(void) {
     kern_return_t result;
     io_iterator_t iterator;
     io_object_t device;
@@ -82,13 +79,11 @@ kern_return_t SMCOpen(void)
     return kIOReturnSuccess;
 }
 
-kern_return_t SMCClose()
-{
+kern_return_t SMCClose() {
     return IOServiceClose(conn);
 }
 
-kern_return_t SMCCall(int index, SMCKeyData_t* inputStructure, SMCKeyData_t* outputStructure)
-{
+kern_return_t SMCCall(int index, SMCKeyData_t *inputStructure, SMCKeyData_t *outputStructure) {
     size_t structureInputSize;
     size_t structureOutputSize;
 
@@ -96,11 +91,12 @@ kern_return_t SMCCall(int index, SMCKeyData_t* inputStructure, SMCKeyData_t* out
     structureOutputSize = sizeof(SMCKeyData_t);
 
 #if MAC_OS_X_VERSION_10_5
-    return IOConnectCallStructMethod(conn, index,
-        // inputStructure
-        inputStructure, structureInputSize,
-        // ouputStructure
-        outputStructure, &structureOutputSize);
+    return IOConnectCallStructMethod(
+            conn,
+            index,
+            /* inputStructure */ inputStructure, structureInputSize,
+            /* ouputStructure */ outputStructure, &structureOutputSize
+    );
 #else
     return IOConnectMethodStructureIStructureO(conn, index,
         structureInputSize, /* structureInputSize */
@@ -110,8 +106,7 @@ kern_return_t SMCCall(int index, SMCKeyData_t* inputStructure, SMCKeyData_t* out
 #endif
 }
 
-kern_return_t SMCReadKey(UInt32Char_t key, SMCVal_t* val)
-{
+kern_return_t SMCReadKey(UInt32Char_t key, SMCVal_t *val) {
     kern_return_t result;
     SMCKeyData_t inputStructure;
     SMCKeyData_t outputStructure;
@@ -141,8 +136,7 @@ kern_return_t SMCReadKey(UInt32Char_t key, SMCVal_t* val)
     return kIOReturnSuccess;
 }
 
-double SMCGetTemperature(char* key)
-{
+double SMCGetTemperature(char *key) {
     SMCVal_t val;
     kern_return_t result;
 
@@ -152,7 +146,7 @@ double SMCGetTemperature(char* key)
         if (val.dataSize > 0) {
             if (strcmp(val.dataType, DATATYPE_SP78) == 0) {
                 // convert sp78 value to temperature
-                int intValue = val.bytes[0] * 256 + (unsigned char)val.bytes[1];
+                int intValue = val.bytes[0] * 256 + (unsigned char) val.bytes[1];
                 return intValue / 256.0;
             }
         }
@@ -161,23 +155,19 @@ double SMCGetTemperature(char* key)
     return 0.0;
 }
 
-int getTemperatureSMCKeySize(unsigned long core)
-{
+int getTemperatureSMCKeySize(unsigned long core) {
     return snprintf(NULL, 0, "%s%lu%c", SMC_CPU_CORE_TEMP_PREFIX, core, SMC_CPU_CORE_TEMP_SUFFIX_NEW);
 }
 
-void getOldSMCTemperatureKeyTemplate(char* key)
-{
+void getOldSMCTemperatureKeyTemplate(char *key) {
     sprintf(key, "%s%%lu%c", SMC_CPU_CORE_TEMP_PREFIX, SMC_CPU_CORE_TEMP_SUFFIX_OLD);
 }
 
-void getNewSMCTemperatureKeyTemplate(char* key)
-{
+void getNewSMCTemperatureKeyTemplate(char *key) {
     sprintf(key, "%s%%lu%c", SMC_CPU_CORE_TEMP_PREFIX, SMC_CPU_CORE_TEMP_SUFFIX_NEW);
 }
 
-double getTemperatureKeyTemplate(unsigned long core, char* templateKey)
-{
+double getTemperatureKeyTemplate(unsigned long core, char *templateKey) {
     getNewSMCTemperatureKeyTemplate(templateKey);
 
     char key[getTemperatureSMCKeySize(core)];
@@ -195,14 +185,12 @@ double getTemperatureKeyTemplate(unsigned long core, char* templateKey)
     return temperature;
 }
 
-double convertToFahrenheit(double celsius)
-{
+double convertToFahrenheit(double celsius) {
     return (celsius * (9.0 / 5.0)) + 32.0;
 }
 
-unsigned long parseNumArg(char* arg, const char* errorMsg)
-{
-    char* endptr;
+unsigned long parseNumArg(char *arg, const char *errorMsg) {
+    char *endptr;
     long result = strtol(arg, &endptr, 10);
     if (endptr == optarg || *endptr != '\0' || result < 0) {
         fprintf(stderr, "%s", errorMsg);
@@ -211,15 +199,13 @@ unsigned long parseNumArg(char* arg, const char* errorMsg)
     return result;
 }
 
-unsigned long getCoreArgCount(const char* arg)
-{
+unsigned long getCoreArgCount(const char *arg) {
     unsigned long coreCount = 0;
     for (int i = 0; arg[i] != '\0'; (arg[i] == ',' && !(i == 0 || arg[i + 1] == ',' || arg[i + 1] == '\0')) ? coreCount++ : 0, i++);
     return coreCount + 1;
 }
 
-int getPhysicalCoreCount()
-{
+int getPhysicalCoreCount() {
     // https://stackoverflow.com/a/150971
     int mib[4];
     int numCPU;
@@ -242,11 +228,11 @@ int getPhysicalCoreCount()
     // https://stackoverflow.com/a/29761237
     uint32_t registers[4];
     __asm__ __volatile__("cpuid "
-                         : "=a"(registers[0]),
-                         "=b"(registers[1]),
-                         "=c"(registers[2]),
-                         "=d"(registers[3])
-                         : "a"(1), "c"(0));
+    : "=a"(registers[0]),
+    "=b"(registers[1]),
+    "=c"(registers[2]),
+    "=d"(registers[3])
+    : "a"(1), "c"(0));
 
     unsigned cpuFeatureSet = registers[3];
     bool hyperthreading = cpuFeatureSet & (1 << 28);
@@ -257,13 +243,12 @@ int getPhysicalCoreCount()
         return numCPU;
 }
 
-void getCoreNumbers(char* arg, unsigned long* cores, char* errorMsg)
-{
+void getCoreNumbers(char *arg, unsigned long *cores, char *errorMsg) {
     char buf[strlen(arg) + 1];
-    char* core = buf;
+    char *core = buf;
 
     while (*arg) {
-        if (!isspace((unsigned char)*arg))
+        if (!isspace((unsigned char) *arg))
             *core++ = *arg;
         arg++;
     }
@@ -295,11 +280,10 @@ enum OutputMode {
     package,
 };
 
-int main(int argc, char* argv[])
-{
+int main(int argc, char *argv[]) {
     char scale = 'C';
     bool specifiedCores = false;
-    unsigned long* coreList = malloc(sizeof(unsigned long));
+    unsigned long *coreList = malloc(sizeof(unsigned long));
     unsigned long coreCount;
     unsigned int rounding = 0;
     enum OutputMode outputMode = core;
@@ -307,34 +291,34 @@ int main(int argc, char* argv[])
     int argLabel;
     while ((argLabel = getopt(argc, argv, "FCc:r:ph")) != -1) {
         switch (argLabel) { // NOLINT(hicpp-multiway-paths-covered)
-        case 'F':
-        case 'C':
-            scale = (char)argLabel;
-            break;
-        case 'c': {
-            coreCount = getCoreArgCount(optarg);
-            coreList = realloc(coreList, coreCount * sizeof(unsigned long));
-            getCoreNumbers(optarg, coreList, "Invalid core specified.\n");
-            specifiedCores = true;
-            break;
-        }
-        case 'r':
-            rounding = (int)parseNumArg(optarg, "Invalid decimal place limit.\n");
-            break;
-        case 'p':
-            outputMode = package;
-            break;
-        case 'h':
-        case '?':
-            printf("usage: coretemp <options>\n");
-            printf("Options:\n");
-            printf("  -F        Display temperatures in degrees Fahrenheit.\n");
-            printf("  -C        Display temperatures in degrees Celsius (Default).\n");
-            printf("  -c <num>  Specify which cores to report on, in a comma-separated list. If unspecified, reports all temperatures.\n");
-            printf("  -r <num>  The accuracy of the temperature, in the number of decimal places. Defaults to 0.\n");
-            printf("  -p        Display the CPU package temperature instead of the core temperatures.\n");
-            printf("  -h        Display this help.\n");
-            return -1;
+            case 'F':
+            case 'C':
+                scale = (char) argLabel;
+                break;
+            case 'c': {
+                coreCount = getCoreArgCount(optarg);
+                coreList = realloc(coreList, coreCount * sizeof(unsigned long));
+                getCoreNumbers(optarg, coreList, "Invalid core specified.\n");
+                specifiedCores = true;
+                break;
+            }
+            case 'r':
+                rounding = (int) parseNumArg(optarg, "Invalid decimal place limit.\n");
+                break;
+            case 'p':
+                outputMode = package;
+                break;
+            case 'h':
+            case '?':
+                printf("usage: coretemp <options>\n");
+                printf("Options:\n");
+                printf("  -F        Display temperatures in degrees Fahrenheit.\n");
+                printf("  -C        Display temperatures in degrees Celsius (Default).\n");
+                printf("  -c <num>  Specify which cores to report on, in a comma-separated list. If unspecified, reports all temperatures.\n");
+                printf("  -r <num>  The accuracy of the temperature, in the number of decimal places. Defaults to 0.\n");
+                printf("  -p        Display the CPU package temperature instead of the core temperatures.\n");
+                printf("  -h        Display this help.\n");
+                return -1;
         }
     }
 
@@ -383,14 +367,14 @@ int main(int argc, char* argv[])
             break;
         }
         case package: {
-                // https://logi.wiki/index.php/SMC_Sensor_Codes
-                // try again with macbookpro cpu proximity temperature = TC0P code(key)
-                double cpuTemperature = SMCGetTemperature(SMC_CPU_DIE_TEMP);
-                if (cpuTemperature == 0) {
-                    cpuTemperature = SMCGetTemperature(SMC_CPU_PROXIMITY_TEMP);
-                }
-                printTemperature(convertToCorrectScale(scale, cpuTemperature), rounding);
+            // https://logi.wiki/index.php/SMC_Sensor_Codes
+            // try again with macbookpro cpu proximity temperature = TC0P code(key)
+            double cpuTemperature = SMCGetTemperature(SMC_CPU_DIE_TEMP);
+            if (cpuTemperature == 0) {
+                cpuTemperature = SMCGetTemperature(SMC_CPU_PROXIMITY_TEMP);
             }
+            printTemperature(convertToCorrectScale(scale, cpuTemperature), rounding);
+        }
             break;
     }
 
