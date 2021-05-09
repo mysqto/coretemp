@@ -28,7 +28,7 @@
 
 static io_connect_t conn;
 
-UInt32 _strtoul(const char *str, int size, int base) {
+UInt32 strtoulWithSize(const char *str, int size, int base) {
     UInt32 total = 0;
     int i;
 
@@ -41,7 +41,7 @@ UInt32 _strtoul(const char *str, int size, int base) {
     return total;
 }
 
-void _ultostr(char *str, UInt32 val) {
+void ultostr(char *str, UInt32 val) {
     str[0] = '\0';
     sprintf(str, "%c%c%c%c",
             (unsigned int) val >> 24,
@@ -115,7 +115,7 @@ kern_return_t SMCReadKey(UInt32Char_t key, SMCVal_t *val) {
     memset(&outputStructure, 0, sizeof(SMCKeyData_t));
     memset(val, 0, sizeof(SMCVal_t));
 
-    inputStructure.key = _strtoul(key, 4, 16);
+    inputStructure.key = strtoulWithSize(key, 4, 16);
     inputStructure.data8 = SMC_CMD_READ_KEYINFO;
 
     result = SMCCall(KERNEL_INDEX_SMC, &inputStructure, &outputStructure);
@@ -123,7 +123,7 @@ kern_return_t SMCReadKey(UInt32Char_t key, SMCVal_t *val) {
         return result;
 
     val->dataSize = outputStructure.keyInfo.dataSize;
-    _ultostr(val->dataType, outputStructure.keyInfo.dataType);
+    ultostr(val->dataType, outputStructure.keyInfo.dataType);
     inputStructure.keyInfo.dataSize = val->dataSize;
     inputStructure.data8 = SMC_CMD_READ_BYTES;
 
