@@ -206,41 +206,10 @@ unsigned long getCoreArgCount(const char *arg) {
 }
 
 int getPhysicalCoreCount() {
-    // https://stackoverflow.com/a/150971
-    int mib[4];
-    int numCPU;
-    size_t len = sizeof(numCPU);
-
-    /* set the mib for hw.ncpu */
-    mib[0] = CTL_HW;
-    mib[1] = HW_NCPU; // alternatively, try HW_NCPU;
-
-    /* get the number of CPUs from the system */
-    sysctl(mib, 2, &numCPU, &len, NULL, 0);
-
-    if (numCPU < 1) {
-        mib[1] = HW_NCPU;
-        sysctl(mib, 2, &numCPU, &len, NULL, 0);
-        if (numCPU < 1)
-            numCPU = 1;
-    }
-
-    // https://stackoverflow.com/a/29761237
-    uint32_t registers[4];
-    __asm__ __volatile__("cpuid "
-    : "=a"(registers[0]),
-    "=b"(registers[1]),
-    "=c"(registers[2]),
-    "=d"(registers[3])
-    : "a"(1), "c"(0));
-
-    unsigned cpuFeatureSet = registers[3];
-    bool hyperthreading = cpuFeatureSet & (1 << 28);
-
-    if (hyperthreading)
-        return numCPU / 2;
-    else
-        return numCPU;
+    int coreCount;
+    size_t len = sizeof(coreCount);
+    sysctlbyname("hw.physicalcpu_max", &coreCount, &len, NULL, 0);
+    return coreCount;
 }
 
 void getCoreNumbers(char *arg, unsigned long *cores, char *errorMsg) {
