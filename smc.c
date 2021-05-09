@@ -333,7 +333,7 @@ int main(int argc, char *argv[]) {
                 int coreOffset = 0;
                 if (SMCGetTemperature("TC0C") == 0 && SMCGetTemperature("TC0c") == 0) {
                     // https://logi.wiki/index.php/SMC_Sensor_Codes
-                    // macbookpro first core temperature = TC1C code(key)
+                    // If the temperature of the core at index 0 is 0, use MacBook Pro core numbers (which start at 1).
                     coreOffset = 1;
                 }
                 for (int i = 0; i < coreCount; ++i)
@@ -344,7 +344,7 @@ int main(int argc, char *argv[]) {
             double firstCoreTemperature = getTemperatureKeyTemplate(coreList[0], templateKey);
 
             if (firstCoreTemperature == 0) {
-                // The first core does not exist
+                // The first core does not exist.
                 printf("The specified core (%lu) does not exist.\n", coreList[0]);
                 exit(1);
             }
@@ -357,7 +357,7 @@ int main(int argc, char *argv[]) {
                 double temperature = SMCGetTemperature(key);
 
                 if (temperature == 0) {
-                    // The specified core does not exist
+                    // The specified core does not exist.
                     printf("The specified core (%lu) does not exist.\n", coreList[i]);
                     exit(1);
                 }
@@ -367,10 +367,10 @@ int main(int argc, char *argv[]) {
             break;
         }
         case package: {
-            // https://logi.wiki/index.php/SMC_Sensor_Codes
-            // try again with macbookpro cpu proximity temperature = TC0P code(key)
             double cpuTemperature = SMCGetTemperature(SMC_CPU_DIE_TEMP);
             if (cpuTemperature == 0) {
+                // https://logi.wiki/index.php/SMC_Sensor_Codes
+                // If the first SMC sensor code isn't recognised, use the MacBook Pro cpu proximity temperature.
                 cpuTemperature = SMCGetTemperature(SMC_CPU_PROXIMITY_TEMP);
             }
             printTemperature(convertToCorrectScale(scale, cpuTemperature), rounding);
