@@ -2,8 +2,8 @@
 CC     = cc
 CFLAGS = -O2 -Wall
 INC    = -framework IOKit
-PREFIX = /usr/local
-EXEC   = coretemp
+PREFIX ?= /usr/local
+EXEC   ?= coretemp
 SOURCES := $(shell find . -name '*.c')
 
 all : build
