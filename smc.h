@@ -81,4 +81,4 @@ typedef struct {
 } SMCVal_t;
 
 // prototypes
-double SMCGetTemperature(char *key);
+double SMCGetTemperature(char* key);
