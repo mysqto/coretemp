@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 
 if [ ! -f ".clang-format" ]; then
     echo ".clang-format file not found!"
@@ -6,7 +6,9 @@ if [ ! -f ".clang-format" ]; then
 fi
 
 failures=0
-for file in $(find . -name '*.c' -o -name '*.h'); do
+
+while IFS= read -r -d '' file
+do
     echo "Checking ${file}"
     tmp="$(mktemp)"
     clang-format -style=file "${file}" > "${tmp}"
@@ -15,6 +17,6 @@ for file in $(find . -name '*.c' -o -name '*.h'); do
         failures=$((failures + 1))
     fi
     rm "${tmp}"
-done
+done < <(find . -name '*.c' -o -name '*.h')
 
 [[ "${failures}" -eq 0 ]] || exit 1

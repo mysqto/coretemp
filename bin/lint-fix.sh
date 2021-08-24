@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 
 if [ ! -f ".clang-format" ]; then
     echo ".clang-format file not found!"
@@ -7,7 +7,8 @@ fi
 
 changed=0
 
-for file in $(find . -name '*.c' -o -name '*.h'); do
+while IFS= read -r -d '' file
+do
     tmp="$(mktemp)"
     clang-format -style=file "${file}" > "${tmp}"
     if cmp "${tmp}" "${file}" >/dev/null; then
@@ -17,7 +18,7 @@ for file in $(find . -name '*.c' -o -name '*.h'); do
         echo "Formatted ${file}"
         changed=1
     fi
-done
+done <   <(find . -name '*.c' -o -name '*.h')
 
 if [[ "${changed}" -eq 0 ]]; then
     echo "Already formatted"
