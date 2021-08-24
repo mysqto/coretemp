@@ -259,9 +259,9 @@ double convertToCorrectScale(char scale, double temperature)
     }
 }
 
-void printTemperature(double temperature, unsigned int rounding)
+void printTemperature(double temperature, unsigned int rounding, char *unit)
 {
-    printf("%.*f\n", rounding, temperature);
+    printf("%.*f%s\n", rounding, temperature, unit);
 }
 
 enum OutputMode {
@@ -272,18 +272,23 @@ enum OutputMode {
 int main(int argc, char* argv[])
 {
     char scale = 'C';
+    char *unit = "°C";
     bool specifiedCores = false;
+    bool printUnit = false;
     unsigned long* coreList = malloc(sizeof(unsigned long));
     unsigned long coreCount;
     unsigned int rounding = 0;
     enum OutputMode outputMode = core;
 
     int argLabel;
-    while ((argLabel = getopt(argc, argv, "FCc:r:ph")) != -1) {
+    while ((argLabel = getopt(argc, argv, "FCuc:r:ph")) != -1) {
         switch (argLabel) { // NOLINT(hicpp-multiway-paths-covered)
         case 'F':
         case 'C':
             scale = (char)argLabel;
+            break;
+        case 'u':
+            printUnit = true;
             break;
         case 'c': {
             coreCount = getCoreArgCount(optarg);
@@ -304,12 +309,21 @@ int main(int argc, char* argv[])
             printf("Options:\n");
             printf("  -F        Display temperatures in degrees Fahrenheit.\n");
             printf("  -C        Display temperatures in degrees Celsius (Default).\n");
+            printf("  -u        Display temperatures unit(°C or °F)\n");
             printf("  -c <num>  Specify which cores to report on, in a comma-separated list. If unspecified, reports all temperatures.\n");
             printf("  -r <num>  The accuracy of the temperature, in the number of decimal places. Defaults to 0.\n");
             printf("  -p        Display the CPU package temperature instead of the core temperatures.\n");
             printf("  -h        Display this help.\n");
             return -1;
         }
+    }
+
+    if (scale == 'F') {
+        unit = "°F";
+    }
+
+    if (!printUnit) {
+        unit = "";
     }
 
     SMCOpen();
@@ -339,7 +353,7 @@ int main(int argc, char* argv[])
             exit(1);
         }
 
-        printTemperature(convertToCorrectScale(scale, firstCoreTemperature), rounding);
+        printTemperature(convertToCorrectScale(scale, firstCoreTemperature), rounding, unit);
 
         for (int i = 1; i < coreCount; ++i) {
             char key[getTemperatureSMCKeySize(coreList[i])];
@@ -352,7 +366,7 @@ int main(int argc, char* argv[])
                 exit(1);
             }
 
-            printTemperature(convertToCorrectScale(scale, temperature), rounding);
+            printTemperature(convertToCorrectScale(scale, temperature), rounding, unit);
         }
         break;
     }
@@ -363,7 +377,7 @@ int main(int argc, char* argv[])
             // If the first SMC sensor code isn't recognised, use the MacBook Pro cpu proximity temperature.
             cpuTemperature = SMCGetTemperature(SMC_CPU_PROXIMITY_TEMP);
         }
-        printTemperature(convertToCorrectScale(scale, cpuTemperature), rounding);
+        printTemperature(convertToCorrectScale(scale, cpuTemperature), rounding, unit);
     } break;
     }
 

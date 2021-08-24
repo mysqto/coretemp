@@ -7,7 +7,7 @@ Outputs current CPU core and package temperatures on macOS.
 ### Install with brew
 
 ```bash
-brew install hacker1024/hacker1024/coretemp
+brew install mysqto/mysqto/coretemp
 ```
 
 ### Compile manually
@@ -31,7 +31,7 @@ coretemp
 
 ### Output example
 
-```
+```bash
 62
 58
 59
@@ -40,23 +40,25 @@ coretemp
 
 ### Options
 
- * `-C` Output temperature in Celsius (default).
- * `-F` Output temperature in Fahrenheit.
- * `-c <num>` Specify which cores to report on, in a comma-separated list. If unspecified, reports all temperatures.
- * `-r <num>`  The accuracy of the temperature, in the number of decimal places. Defaults to 0.
- * `-p` Display the CPU package temperature instead of the core temperatures.
+* `-C` Display temperatures in degrees Celsius (Default).
+* `-F` Display temperatures in degrees Fahrenheit.
+* `-u` Display temperatures unit(°C or °F).
+* `-c <num>` Specify which cores to report on, in a comma-separated list. If unspecified, reports all temperatures.
+* `-r <num>`  The accuracy of the temperature, in the number of decimal places. Defaults to 0.
+* `-p` Display the CPU package temperature instead of the core temperatures.
  
-## Maintainer 
+## Maintainers
 
+mysqto \<my@mysq.to\>
 hacker1024 \<hacker1024@users.sourceforge.net\>
 
-### Source 
+### Source
 
 Apple System Management Control (SMC) Tool 
 Copyright (C) 2006
 
-### Inspiration 
+### Inspiration
 
- * https://github.com/lavoiesl/osx-cpu-temp
- * https://www.eidac.de/smcfancontrol/
- * https://github.com/hholtmann/smcFanControl/tree/master/smc-command
+* <https://github.com/lavoiesl/osx-cpu-temp>
+* <https://www.eidac.de/smcfancontrol/>
+* <https://github.com/hholtmann/smcFanControl/tree/master/smc-command>
