@@ -7,7 +7,7 @@ Outputs current CPU core and package temperatures on macOS.
 ### Install with brew
 
 ```bash
-brew install mysqto/mysqto/coretemp
+brew install mysqto/coretemp/coretemp
 ```
 
 ### Compile manually
